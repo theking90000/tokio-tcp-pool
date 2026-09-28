@@ -1,0 +1,36 @@
+[package]
+name = "async-tls-pool"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+authors = ["theking90000 <martin.cogh@gmail.com>"]
+description = "Async pooled TCP/TLS connections over direct, SOCKS5 and HTTP CONNECT routes"
+license = "MIT"
+repository = "https://github.com/theking90000/async-tls-pool"
+documentation = "https://docs.rs/async-tls-pool"
+readme = "README.md"
+keywords = ["async", "tcp", "tls", "pool", "proxy"]
+categories = ["asynchronous", "network-programming"]
+include = ["/src", "/tests", "/docs", "/README.md", "/LICENSE", "/CHANGELOG.md", "/Cargo.toml"]
+
+[features]
+default = ["tls", "socks5", "http-connect"]
+tls = ["dep:tokio-rustls"]
+socks5 = []
+http-connect = ["dep:httparse"]
+
+[dependencies]
+tokio = { version = "1.52", features = ["net", "io-util", "sync", "time"] }
+socket2 = "0.6"
+tokio-rustls = { version = "0.26", optional = true, default-features = false, features = ["ring", "tls12"] }
+httparse = { version = "1.10", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "test-util"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
