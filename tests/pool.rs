@@ -113,7 +113,9 @@ async fn max_open_under_contention_and_waiter_cancellation() {
 
 #[tokio::test]
 async fn failures_do_not_leak_capacity() {
-    bounded(async {
+    // Windows can take about a second to report each refused TCP connect.
+    // Eight serialized attempts need a larger test guard than successful I/O.
+    tokio::time::timeout(Duration::from_secs(30), async {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         drop(listener);
@@ -137,7 +139,8 @@ async fn failures_do_not_leak_capacity() {
             task.unwrap();
         }
     })
-    .await;
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
