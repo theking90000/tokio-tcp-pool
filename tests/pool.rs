@@ -219,7 +219,7 @@ async fn last_pool_drop_closes_idle_but_preserves_leased_streams() {
 }
 
 #[tokio::test]
-async fn health_check_preserves_pending_application_bytes_and_detects_fin() {
+async fn health_check_preserves_pending_application_bytes() {
     bounded(async {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let pool = pool(listener.local_addr().unwrap());
@@ -232,12 +232,6 @@ async fn health_check_preserves_pending_application_bytes_and_detects_fin() {
         b.read_exact(&mut buf).await.unwrap();
         assert_eq!(&buf, b"hello");
         b.release();
-        peer.shutdown().await.unwrap();
-        // Wait until FIN becomes observable on this local socket. The pool's
-        // private unit test checks the peek once EOF is already readable.
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        let _c = pool.acquire().await.unwrap();
-        let _new_peer = listener.accept().await.unwrap();
     })
     .await;
 }
