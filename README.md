@@ -1,4 +1,4 @@
-# async-tls-pool
+# tokio-tcp-pool
 
 Reuse TCP/TLS connections to one destination over a direct connection, SOCKS5,
 or HTTP CONNECT. Each acquired connection implements Tokio's `AsyncRead` and
@@ -17,7 +17,7 @@ Until a crates.io release, use the Git repository with access to the private rep
 
 ```toml
 [dependencies]
-async-tls-pool = { git = "https://github.com/theking90000/async-tls-pool" }
+tokio-tcp-pool = { git = "https://github.com/theking90000/tokio-tcp-pool" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 ```
 
@@ -27,7 +27,7 @@ Each pool has one immutable route. Cloning a pool shares its connections and
 limits. Separate destinations require separate pools.
 
 ```rust,no_run
-use async_tls_pool::{Pool, Route};
+use tokio_tcp_pool::{Pool, Route};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -67,9 +67,9 @@ configuration, including trusted roots and any ALPN protocols.
 
 ```rust,no_run
 # #[cfg(all(feature = "tls", feature = "socks5"))]
-# fn example(client: std::sync::Arc<async_tls_pool::rustls::ClientConfig>)
-#     -> Result<async_tls_pool::Pool, Box<dyn std::error::Error>> {
-use async_tls_pool::{Pool, Route, Socks5Dns};
+# fn example(client: std::sync::Arc<tokio_tcp_pool::rustls::ClientConfig>)
+#     -> Result<tokio_tcp_pool::Pool, Box<dyn std::error::Error>> {
+use tokio_tcp_pool::{Pool, Route, Socks5Dns};
 
 let pool = Pool::builder(Route::Socks5 {
     proxy: "127.0.0.1:1080".parse()?,

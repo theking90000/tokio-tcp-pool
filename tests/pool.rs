@@ -1,6 +1,6 @@
 //! Pool lifecycle, concurrency and endpoint integration tests.
 mod common;
-use async_tls_pool::{AcquireError, ConfigError, ConnectError, Connection, Endpoint, Pool, Route};
+use tokio_tcp_pool::{AcquireError, ConfigError, ConnectError, Connection, Endpoint, Pool, Route};
 use common::*;
 use std::{
     sync::{

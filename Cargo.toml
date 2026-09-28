@@ -1,13 +1,13 @@
 [package]
-name = "async-tls-pool"
+name = "tokio-tcp-pool"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["theking90000 <martin.cogh@gmail.com>"]
 description = "Async pooled TCP/TLS connections over direct, SOCKS5 and HTTP CONNECT routes"
 license = "MIT"
-repository = "https://github.com/theking90000/async-tls-pool"
-documentation = "https://docs.rs/async-tls-pool"
+repository = "https://github.com/theking90000/tokio-tcp-pool"
+documentation = "https://docs.rs/tokio-tcp-pool"
 readme = "README.md"
 keywords = ["async", "tcp", "tls", "pool", "proxy"]
 categories = ["asynchronous", "network-programming"]

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use async_tls_pool::{Connection, Endpoint, Pool, Route};
+use tokio_tcp_pool::{Connection, Endpoint, Pool, Route};
 use std::{
     net::SocketAddr,
     sync::{
@@ -155,8 +155,8 @@ pub async fn http_request(stream: &mut tokio::net::TcpStream) -> String {
 }
 
 #[cfg(feature = "tls")]
-pub fn tls_configs() -> (async_tls_pool::TlsConfig, tokio_rustls::TlsAcceptor) {
-    use async_tls_pool::rustls::{
+pub fn tls_configs() -> (tokio_tcp_pool::TlsConfig, tokio_rustls::TlsAcceptor) {
+    use tokio_tcp_pool::rustls::{
         self,
         pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
     };
@@ -181,7 +181,7 @@ pub fn tls_configs() -> (async_tls_pool::TlsConfig, tokio_rustls::TlsAcceptor) {
         )
         .unwrap();
     (
-        async_tls_pool::TlsConfig::new(Arc::new(client)),
+        tokio_tcp_pool::TlsConfig::new(Arc::new(client)),
         tokio_rustls::TlsAcceptor::from(Arc::new(server)),
     )
 }

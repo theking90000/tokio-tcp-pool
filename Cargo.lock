@@ -3,16 +3,6 @@
 version = 4
 
 [[package]]
-name = "async-tls-pool"
-version = "0.1.0"
-dependencies = [
- "httparse",
- "socket2",
- "tokio",
- "tokio-rustls",
-]
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -219,6 +209,16 @@ checksum = "b0c85f2c3ef0b1cd58b36682f4b17aaa995f0e5db534d85692b4903abce21f67"
 dependencies = [
  "rustls",
  "tokio",
+]
+
+[[package]]
+name = "tokio-tcp-pool"
+version = "0.1.0"
+dependencies = [
+ "httparse",
+ "socket2",
+ "tokio",
+ "tokio-rustls",
 ]
 
 [[package]]

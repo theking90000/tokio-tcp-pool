@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/ca.key" -out "$work/ca.pem" -days 36500 -subj '/CN=async-tls-pool test CA' -addext 'basicConstraints=critical,CA:TRUE'
+openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/ca.key" -out "$work/ca.pem" -days 36500 -subj '/CN=tokio-tcp-pool test CA' -addext 'basicConstraints=critical,CA:TRUE'
 openssl req -new -newkey rsa:2048 -nodes -keyout "$work/server.key" -out "$work/server.csr" -subj '/CN=localhost'
 cat > "$work/extensions" <<'EXT'
 basicConstraints=critical,CA:FALSE

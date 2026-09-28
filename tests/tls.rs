@@ -1,7 +1,7 @@
 //! Local TLS validation, proxy composition, deadlines and cancellation.
 #![cfg(feature = "tls")]
 mod common;
-use async_tls_pool::{AcquireError, ConnectError, Endpoint, Pool, Route, TlsConfig, rustls};
+use tokio_tcp_pool::{AcquireError, ConnectError, Endpoint, Pool, Route, TlsConfig, rustls};
 use common::*;
 use std::{sync::Arc, time::Duration};
 #[cfg(feature = "http-connect")]
@@ -26,7 +26,7 @@ async fn direct_and_proxy_tls_validate_the_target_and_reuse() {
             routes.push(Route::Socks5 {
                 proxy: proxy.addr.into(),
                 target: target.clone(),
-                dns: async_tls_pool::Socks5Dns::Proxy,
+                dns: tokio_tcp_pool::Socks5Dns::Proxy,
             });
             proxies.push(proxy);
         }

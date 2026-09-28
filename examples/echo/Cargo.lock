@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "async-tls-pool"
+name = "tokio-tcp-pool"
 version = "0.1.0"
 dependencies = [
  "socket2",
@@ -11,10 +11,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-tls-pool-echo-example"
+name = "tokio-tcp-pool-echo-example"
 version = "0.1.0"
 dependencies = [
- "async-tls-pool",
+ "tokio-tcp-pool",
  "tokio",
 ]
 

@@ -1,7 +1,7 @@
 //! Local proxy protocol success, failure and cancellation tests.
 #![cfg(any(feature = "socks5", feature = "http-connect"))]
 mod common;
-use async_tls_pool::{AcquireError, ConnectError, Pool, Route};
+use tokio_tcp_pool::{AcquireError, ConnectError, Pool, Route};
 use common::*;
 use std::time::Duration;
 use tokio::{
@@ -12,7 +12,7 @@ use tokio::{
 #[cfg(feature = "socks5")]
 #[tokio::test]
 async fn socks_local_proxy_dns_ipv4_and_ipv6() {
-    use async_tls_pool::Socks5Dns;
+    use tokio_tcp_pool::Socks5Dns;
     bounded(async {
         for (name, dns, expected_type) in [
             ("localhost", Socks5Dns::Local, 0),
@@ -50,7 +50,7 @@ async fn socks_local_proxy_dns_ipv4_and_ipv6() {
             });
             let pool = Pool::builder(Route::Socks5 {
                 proxy: proxy.into(),
-                target: async_tls_pool::Endpoint::new(name, 1234).unwrap(),
+                target: tokio_tcp_pool::Endpoint::new(name, 1234).unwrap(),
                 dns,
             })
             .build()
@@ -89,7 +89,7 @@ async fn socks_rejects_failure_and_malformed_replies() {
             let pool = Pool::builder(Route::Socks5 {
                 proxy: proxy.into(),
                 target: "remote.invalid:80".parse().unwrap(),
-                dns: async_tls_pool::Socks5Dns::Proxy,
+                dns: tokio_tcp_pool::Socks5Dns::Proxy,
             })
             .build()
             .unwrap();
@@ -198,7 +198,7 @@ async fn proxy_cancellation_and_timeout_wake_waiters() {
                 ProxyKind::Socks => Route::Socks5 {
                     proxy: proxy.into(),
                     target: "remote.invalid:443".parse().unwrap(),
-                    dns: async_tls_pool::Socks5Dns::Proxy,
+                    dns: tokio_tcp_pool::Socks5Dns::Proxy,
                 },
                 #[cfg(feature = "http-connect")]
                 ProxyKind::Http => Route::HttpConnect {
