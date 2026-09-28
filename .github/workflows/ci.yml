@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        toolchain: [stable, '1.85.0']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test --locked --all-features
+      - run: cargo test --locked --all-features --release
+      - run: cargo test --locked --no-default-features
+      - run: cargo test --locked --no-default-features --features tls
+      - run: cargo test --locked --no-default-features --features socks5
+      - run: cargo test --locked --no-default-features --features http-connect
+      - run: cargo run --locked --manifest-path examples/echo/Cargo.toml
+
+  portability:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked --all-features
+      - run: cargo test --locked --no-default-features
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo fmt --manifest-path examples/echo/Cargo.toml -- --check
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo clippy --locked --all-targets --no-default-features -- -D warnings
+      - run: cargo doc --locked --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo package --locked
