@@ -36,7 +36,7 @@ impl ConnectionInner {
             ),
         }
     }
-    fn stream(&mut self) -> Pin<&mut (dyn AsyncStream + Send)> {
+    fn stream(&mut self) -> Pin<&mut (dyn AsyncStream + Send + Unpin)> {
         match self {
             Self::Plain(stream) => Pin::new(stream),
             #[cfg(feature = "tls")]
