@@ -1,8 +1,4 @@
-//! Async pooled TCP/TLS connections over a single immutable route.
-//!
-//! [`Pool::acquire`] returns an opaque Tokio stream. Only [`Connection::release`]
-//! authorizes reuse; dropping a connection discards it. No background task or
-//! implicit application I/O timeout is created.
+#![doc = include_str!("../README.md")]
 
 mod connection;
 mod endpoint;
