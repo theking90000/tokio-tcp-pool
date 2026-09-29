@@ -17,7 +17,7 @@ Requires Rust 1.85 or newer and a Tokio runtime with I/O and time enabled.
 
 ```toml
 [dependencies]
-tokio-tcp-pool = "0.1.2"
+tokio-tcp-pool = "0.1.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 ```
 
