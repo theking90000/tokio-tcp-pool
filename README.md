@@ -3,7 +3,7 @@
 Reuse TCP/TLS connections to one destination over a direct connection, SOCKS5,
 or HTTP CONNECT. Each acquired connection implements Tokio's `AsyncRead` and
 `AsyncWrite`, so ordinary Tokio I/O works without a protocol adapter. It also
-implements `futures_io::AsyncWrite` for callers using futures I/O writing.
+implements `futures_io::AsyncRead` and `futures_io::AsyncWrite` for futures I/O.
 
 A connection returns to the pool only through `release()`. Dropping it discards
 it. This lets a protocol implementation reuse a fully consumed response stream

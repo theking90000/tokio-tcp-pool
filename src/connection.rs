@@ -6,7 +6,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-/// An opaque pooled byte stream implementing Tokio I/O and futures I/O writing.
+/// An opaque pooled byte stream implementing Tokio I/O and futures I/O.
 ///
 /// Dropping this value discards its transport. Only an explicit [`Self::release`]
 /// authorizes reuse. I/O errors, read EOF, zero-length nonempty writes, and write
@@ -111,6 +111,17 @@ impl AsyncWrite for Connection {
     }
 }
 
+impl futures_io::AsyncRead for Connection {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut buf = ReadBuf::new(buf);
+        <Self as AsyncRead>::poll_read(self, cx, &mut buf).map_ok(|()| buf.filled().len())
+    }
+}
+
 impl futures_io::AsyncWrite for Connection {
     fn poll_write(
         self: Pin<&mut Self>,
@@ -140,8 +151,128 @@ impl futures_io::AsyncWrite for Connection {
 #[cfg(test)]
 mod tests {
     use crate::{Pool, Route};
-    use std::time::Duration;
-    use tokio::{io::AsyncReadExt, net::TcpListener};
+    use std::{future::poll_fn, pin::Pin, task::Poll, time::Duration};
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+
+    #[tokio::test]
+    async fn futures_pending_read_wakes_and_preserves_reuse() {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let pool = Pool::builder(Route::Direct {
+                target: listener.local_addr().unwrap().into(),
+            })
+            .max_open(1)
+            .build()
+            .unwrap();
+            let mut connection = pool.acquire().await.unwrap();
+            let (mut peer, _) = listener.accept().await.unwrap();
+            let mut buf = [0; 1];
+            poll_fn(|cx| {
+                assert!(
+                    futures_io::AsyncRead::poll_read(Pin::new(&mut connection), cx, &mut buf)
+                        .is_pending()
+                );
+                Poll::Ready(())
+            })
+            .await;
+            assert!(!connection.broken);
+            let read = tokio::spawn(async move {
+                let count = poll_fn(|cx| {
+                    futures_io::AsyncRead::poll_read(Pin::new(&mut connection), cx, &mut buf)
+                })
+                .await
+                .unwrap();
+                assert_eq!(count, 1);
+                assert_eq!(&buf, b"x");
+                assert!(!connection.broken);
+                connection.release();
+            });
+            // Let the reader register its waker before making data available.
+            tokio::task::yield_now().await;
+            assert!(!read.is_finished());
+            peer.write_all(b"x").await.unwrap();
+            read.await.unwrap();
+            let mut connection = pool.acquire().await.unwrap();
+            connection.write_all(b"y").await.unwrap();
+            assert_eq!(peer.read_u8().await.unwrap(), b'y');
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn futures_empty_read_is_not_eof_but_nonempty_eof_prevents_reuse() {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let pool = Pool::builder(Route::Direct {
+                target: listener.local_addr().unwrap().into(),
+            })
+            .max_open(1)
+            .build()
+            .unwrap();
+            let mut connection = pool.acquire().await.unwrap();
+            let (mut peer, _) = listener.accept().await.unwrap();
+            peer.shutdown().await.unwrap();
+            assert_eq!(
+                poll_fn(|cx| {
+                    futures_io::AsyncRead::poll_read(Pin::new(&mut connection), cx, &mut [])
+                })
+                .await
+                .unwrap(),
+                0
+            );
+            assert!(!connection.broken);
+            assert_eq!(
+                poll_fn(|cx| {
+                    futures_io::AsyncRead::poll_read(Pin::new(&mut connection), cx, &mut [0; 1])
+                })
+                .await
+                .unwrap(),
+                0
+            );
+            assert!(connection.broken);
+            connection.release();
+            let _new = pool.acquire().await.unwrap();
+            listener.accept().await.unwrap();
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn futures_read_error_marks_connection_broken() {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let pool = Pool::builder(Route::Direct {
+                target: listener.local_addr().unwrap().into(),
+            })
+            .max_open(1)
+            .build()
+            .unwrap();
+            let mut connection = pool.acquire().await.unwrap();
+            let (peer, _) = listener.accept().await.unwrap();
+            socket2::SockRef::from(&peer)
+                .set_linger(Some(Duration::ZERO))
+                .unwrap();
+            drop(peer);
+            assert!(
+                poll_fn(|cx| {
+                    futures_io::AsyncRead::poll_read(Pin::new(&mut connection), cx, &mut [0; 1])
+                })
+                .await
+                .is_err()
+            );
+            assert!(connection.broken);
+            connection.release();
+            let _new = pool.acquire().await.unwrap();
+            listener.accept().await.unwrap();
+        })
+        .await
+        .unwrap();
+    }
 
     #[tokio::test]
     async fn read_error_marks_connection_broken() {

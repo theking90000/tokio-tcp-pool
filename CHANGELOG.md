@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `futures_io::AsyncRead` support for `Connection`.
+
 ## 0.1.2
 
 - Added `futures_io::AsyncWrite` support for `Connection`.
