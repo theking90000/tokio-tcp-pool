@@ -2,7 +2,10 @@ use crate::{
     ConnectError, Endpoint, Host, Socks5Credentials, Socks5Dns, Socks5ReplyError,
     factory::{connect_tcp, resolve},
 };
-use std::{io, net::IpAddr};
+use std::{
+    io::{self, IoSlice},
+    net::IpAddr,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -48,13 +51,18 @@ async fn handshake(
         return Err(invalid("proxy did not select the offered SOCKS5 method"));
     }
     if let Some(credentials) = credentials {
-        let mut request =
-            Vec::with_capacity(3 + credentials.username.len() + credentials.password.len());
-        request.extend_from_slice(&[1, credentials.username.len() as u8]);
-        request.extend_from_slice(credentials.username.as_bytes());
-        request.push(credentials.password.len() as u8);
-        request.extend_from_slice(credentials.password.as_bytes());
-        socket.write_all(&request).await?;
+        let header = [1, credentials.username.len() as u8];
+        let password_len = [credentials.password.len() as u8];
+        write_all_vectored(
+            socket,
+            &mut [
+                IoSlice::new(&header),
+                IoSlice::new(credentials.username.as_bytes()),
+                IoSlice::new(&password_len),
+                IoSlice::new(credentials.password.as_bytes()),
+            ],
+        )
+        .await?;
         let mut result = [0; 2];
         socket.read_exact(&mut result).await?;
         if result != [1, 0] {
@@ -64,23 +72,47 @@ async fn handshake(
             ));
         }
     }
-    let mut request = vec![5, 1, 0];
+    let port = port.to_be_bytes();
     match host {
         Host::Ip(IpAddr::V4(ip)) => {
-            request.push(1);
-            request.extend_from_slice(&ip.octets());
+            let header = [5, 1, 0, 1];
+            let address = ip.octets();
+            write_all_vectored(
+                socket,
+                &mut [
+                    IoSlice::new(&header),
+                    IoSlice::new(&address),
+                    IoSlice::new(&port),
+                ],
+            )
+            .await?;
         }
         Host::Ip(IpAddr::V6(ip)) => {
-            request.push(4);
-            request.extend_from_slice(&ip.octets());
+            let header = [5, 1, 0, 4];
+            let address = ip.octets();
+            write_all_vectored(
+                socket,
+                &mut [
+                    IoSlice::new(&header),
+                    IoSlice::new(&address),
+                    IoSlice::new(&port),
+                ],
+            )
+            .await?;
         }
         Host::Name(name) => {
-            request.extend_from_slice(&[3, name.len() as u8]);
-            request.extend_from_slice(name.as_bytes());
+            let header = [5, 1, 0, 3, name.len() as u8];
+            write_all_vectored(
+                socket,
+                &mut [
+                    IoSlice::new(&header),
+                    IoSlice::new(name.as_bytes()),
+                    IoSlice::new(&port),
+                ],
+            )
+            .await?;
         }
     }
-    request.extend_from_slice(&port.to_be_bytes());
-    socket.write_all(&request).await?;
     let mut reply = [0; 4];
     socket.read_exact(&mut reply).await?;
     if reply[0] != 5 || reply[2] != 0 {
@@ -103,6 +135,16 @@ async fn handshake(
     };
     let mut bound = [0; 257];
     socket.read_exact(&mut bound[..length + 2]).await?;
+    Ok(())
+}
+async fn write_all_vectored(socket: &mut TcpStream, mut bufs: &mut [IoSlice<'_>]) -> io::Result<()> {
+    while !bufs.is_empty() {
+        let written = socket.write_vectored(bufs).await?;
+        if written == 0 {
+            return Err(io::ErrorKind::WriteZero.into());
+        }
+        IoSlice::advance_slices(&mut bufs, written);
+    }
     Ok(())
 }
 fn invalid(message: &'static str) -> io::Error {

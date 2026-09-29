@@ -194,17 +194,23 @@ async fn socks_local_proxy_dns_ipv4_and_ipv6() {
                     assert_eq!(host, b"never-resolve.invalid");
                 }
                 // Exercise each valid bound-address form, with payload coalesced.
-                let mut response = match kind {
-                    3 => vec![5, 0, 0, 3, 1, b'x', 0, 0],
-                    4 => {
-                        let mut r = vec![5, 0, 0, 4];
-                        r.extend_from_slice(&[0; 18]);
-                        r
+                let mut response = [0; 27];
+                let reply_len = match kind {
+                    3 => {
+                        response[..8].copy_from_slice(&[5, 0, 0, 3, 1, b'x', 0, 0]);
+                        8
                     }
-                    _ => vec![5, 0, 0, 1, 127, 0, 0, 1, 0, 0],
+                    4 => {
+                        response[..4].copy_from_slice(&[5, 0, 0, 4]);
+                        22
+                    }
+                    _ => {
+                        response[..10].copy_from_slice(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0]);
+                        10
+                    }
                 };
-                response.extend_from_slice(b"ready");
-                socket.write_all(&response).await.unwrap();
+                response[reply_len..reply_len + 5].copy_from_slice(b"ready");
+                socket.write_all(&response[..reply_len + 5]).await.unwrap();
                 serve(socket, 1).await;
             });
             let pool = Pool::builder(Route::Socks5 {
