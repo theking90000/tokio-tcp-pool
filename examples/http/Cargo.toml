@@ -1,0 +1,13 @@
+[package]
+name = "tokio-tcp-pool-http-example"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+tokio-tcp-pool = { path = "../..", default-features = false, features = ["tls"] }
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "net", "io-util"] }
+rustls-native-certs = "0.8.4"
+
+[workspace]
