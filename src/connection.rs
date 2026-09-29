@@ -6,7 +6,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-/// An opaque pooled byte stream implementing Tokio I/O traits.
+/// An opaque pooled byte stream implementing Tokio I/O and futures I/O writing.
 ///
 /// Dropping this value discards its transport. Only an explicit [`Self::release`]
 /// authorizes reuse. I/O errors, read EOF, zero-length nonempty writes, and write
@@ -108,6 +108,32 @@ impl AsyncWrite for Connection {
     }
     fn is_write_vectored(&self) -> bool {
         self.live.inner.is_write_vectored()
+    }
+}
+
+impl futures_io::AsyncWrite for Connection {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        <Self as AsyncWrite>::poll_write(self, cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        <Self as AsyncWrite>::poll_flush(self, cx)
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        <Self as AsyncWrite>::poll_shutdown(self, cx)
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        <Self as AsyncWrite>::poll_write_vectored(self, cx, bufs)
     }
 }
 

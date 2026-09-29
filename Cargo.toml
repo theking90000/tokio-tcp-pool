@@ -20,6 +20,7 @@ socks5 = []
 http-connect = ["dep:httparse", "dep:base64"]
 
 [dependencies]
+futures-io = "0.3"
 tokio = { version = "1.52", features = ["net", "io-util", "sync", "time"] }
 socket2 = "0.6"
 tokio-rustls = { version = "0.26", optional = true, default-features = false, features = ["ring", "tls12"] }
