@@ -1,13 +1,13 @@
 //! Local proxy protocol success, failure and cancellation tests.
 #![cfg(any(feature = "socks5", feature = "http-connect"))]
 mod common;
-use tokio_tcp_pool::{AcquireError, ConnectError, Pool, Route};
 use common::*;
 use std::time::Duration;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
 };
+use tokio_tcp_pool::{AcquireError, ConnectError, Pool, Route};
 
 #[cfg(feature = "socks5")]
 #[tokio::test]

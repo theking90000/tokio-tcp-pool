@@ -1,6 +1,5 @@
 //! Pool lifecycle, concurrency and endpoint integration tests.
 mod common;
-use tokio_tcp_pool::{AcquireError, ConfigError, ConnectError, Connection, Endpoint, Pool, Route};
 use common::*;
 use std::{
     sync::{
@@ -13,6 +12,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
 };
+use tokio_tcp_pool::{AcquireError, ConfigError, ConnectError, Connection, Endpoint, Pool, Route};
 
 #[test]
 fn endpoint_and_config_validation() {

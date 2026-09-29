@@ -1,12 +1,12 @@
 //! Local TLS validation, proxy composition, deadlines and cancellation.
 #![cfg(feature = "tls")]
 mod common;
-use tokio_tcp_pool::{AcquireError, ConnectError, Endpoint, Pool, Route, TlsConfig, rustls};
 use common::*;
 use std::{sync::Arc, time::Duration};
 #[cfg(feature = "http-connect")]
 use tokio::io::AsyncWriteExt;
 use tokio::{io::AsyncReadExt, net::TcpListener};
+use tokio_tcp_pool::{AcquireError, ConnectError, Endpoint, Pool, Route, TlsConfig, rustls};
 
 #[tokio::test]
 async fn direct_and_proxy_tls_validate_the_target_and_reuse() {

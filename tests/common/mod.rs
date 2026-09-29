@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use tokio_tcp_pool::{Connection, Endpoint, Pool, Route};
 use std::{
     net::SocketAddr,
     sync::{
@@ -13,6 +12,7 @@ use tokio::{
     net::TcpListener,
     task::JoinHandle,
 };
+use tokio_tcp_pool::{Connection, Endpoint, Pool, Route};
 
 pub struct Server {
     pub addr: SocketAddr,
