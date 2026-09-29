@@ -1,8 +1,8 @@
-use tokio_tcp_pool::{Pool, Route};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
 };
+use tokio_tcp_pool::{Pool, Route};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

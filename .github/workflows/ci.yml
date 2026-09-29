@@ -46,6 +46,7 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all -- --check
       - run: cargo fmt --manifest-path examples/echo/Cargo.toml -- --check
+      - run: cargo fmt --manifest-path examples/http/Cargo.toml -- --check
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo clippy --locked --all-targets --no-default-features -- -D warnings
       - run: cargo doc --locked --all-features --no-deps
