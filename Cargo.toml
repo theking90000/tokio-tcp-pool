@@ -17,13 +17,14 @@ include = ["/src", "/tests", "/docs", "/README.md", "/LICENSE", "/CHANGELOG.md",
 default = ["tls", "socks5", "http-connect"]
 tls = ["dep:tokio-rustls"]
 socks5 = []
-http-connect = ["dep:httparse"]
+http-connect = ["dep:httparse", "dep:base64"]
 
 [dependencies]
 tokio = { version = "1.52", features = ["net", "io-util", "sync", "time"] }
 socket2 = "0.6"
 tokio-rustls = { version = "0.26", optional = true, default-features = false, features = ["ring", "tls12"] }
 httparse = { version = "1.10", optional = true }
+base64 = { version = "0.22", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "test-util"] }

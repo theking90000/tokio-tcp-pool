@@ -1,5 +1,5 @@
 use crate::{
-    ConnectError, Endpoint, Host, Socks5Dns, Socks5ReplyError,
+    ConnectError, Endpoint, Host, Socks5Credentials, Socks5Dns, Socks5ReplyError,
     factory::{connect_tcp, resolve},
 };
 use std::{io, net::IpAddr};
@@ -12,6 +12,7 @@ pub(crate) async fn connect(
     proxy: &Endpoint,
     target: &Endpoint,
     dns: Socks5Dns,
+    credentials: Option<&Socks5Credentials>,
 ) -> Result<TcpStream, ConnectError> {
     let hosts = match (target.host(), dns) {
         (Host::Name(_), Socks5Dns::Local) => resolve(target)
@@ -24,7 +25,7 @@ pub(crate) async fn connect(
     let mut last = None;
     for host in hosts {
         let mut socket = connect_tcp(proxy).await?;
-        match handshake(&mut socket, &host, target.port()).await {
+        match handshake(&mut socket, &host, target.port(), credentials).await {
             Ok(()) => return Ok(socket),
             Err(error) => last = Some(error),
         }
@@ -33,14 +34,35 @@ pub(crate) async fn connect(
         last.expect("at least one target address"),
     ))
 }
-async fn handshake(socket: &mut TcpStream, host: &Host, port: u16) -> io::Result<()> {
-    socket.write_all(&[5, 1, 0]).await?;
+async fn handshake(
+    socket: &mut TcpStream,
+    host: &Host,
+    port: u16,
+    credentials: Option<&Socks5Credentials>,
+) -> io::Result<()> {
+    let method = if credentials.is_some() { 2 } else { 0 };
+    socket.write_all(&[5, 1, method]).await?;
     let mut choice = [0; 2];
     socket.read_exact(&mut choice).await?;
-    if choice != [5, 0] {
-        return Err(invalid(
-            "proxy did not select SOCKS5 without authentication",
-        ));
+    if choice != [5, method] {
+        return Err(invalid("proxy did not select the offered SOCKS5 method"));
+    }
+    if let Some(credentials) = credentials {
+        let mut request =
+            Vec::with_capacity(3 + credentials.username.len() + credentials.password.len());
+        request.extend_from_slice(&[1, credentials.username.len() as u8]);
+        request.extend_from_slice(credentials.username.as_bytes());
+        request.push(credentials.password.len() as u8);
+        request.extend_from_slice(credentials.password.as_bytes());
+        socket.write_all(&request).await?;
+        let mut result = [0; 2];
+        socket.read_exact(&mut result).await?;
+        if result != [1, 0] {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "SOCKS5 authentication failed",
+            ));
+        }
     }
     let mut request = vec![5, 1, 0];
     match host {

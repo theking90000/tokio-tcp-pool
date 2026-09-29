@@ -10,6 +10,165 @@ use tokio::{
 use tokio_tcp_pool::{AcquireError, ConnectError, Pool, Route};
 
 #[cfg(feature = "socks5")]
+#[test]
+fn socks_credentials_validate_lengths_and_hide_secrets() {
+    use tokio_tcp_pool::Socks5Credentials;
+    assert!(Socks5Credentials::new("", "password").is_err());
+    assert!(Socks5Credentials::new("user", "").is_err());
+    assert!(Socks5Credentials::new("u".repeat(256), "password").is_err());
+    assert!(Socks5Credentials::new("user", "p".repeat(256)).is_err());
+    let credentials = Socks5Credentials::new("user", "secret").unwrap();
+    assert!(!format!("{credentials:?}").contains("secret"));
+    assert!(Socks5Credentials::new("u".repeat(255), "p".repeat(255)).is_ok());
+}
+
+#[cfg(feature = "socks5")]
+#[tokio::test]
+async fn socks_username_password_authentication() {
+    use tokio_tcp_pool::{Socks5Credentials, Socks5Dns};
+    bounded(async {
+        for success in [true, false] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let proxy = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut greeting = [0; 3];
+                socket.read_exact(&mut greeting).await.unwrap();
+                assert_eq!(greeting, [5, 1, 2]);
+                socket.write_all(&[5, 2]).await.unwrap();
+                let mut header = [0; 2];
+                socket.read_exact(&mut header).await.unwrap();
+                assert_eq!(header, [1, 4]);
+                let mut username = [0; 4];
+                socket.read_exact(&mut username).await.unwrap();
+                assert_eq!(&username, b"user");
+                assert_eq!(socket.read_u8().await.unwrap(), 6);
+                let mut password = [0; 6];
+                socket.read_exact(&mut password).await.unwrap();
+                assert_eq!(&password, b"secret");
+                socket
+                    .write_all(&[1, if success { 0 } else { 1 }])
+                    .await
+                    .unwrap();
+                if success {
+                    let mut request = [0; 5];
+                    socket.read_exact(&mut request).await.unwrap();
+                    assert_eq!(request, [5, 1, 0, 3, 14]);
+                    let mut host = [0; 14];
+                    socket.read_exact(&mut host).await.unwrap();
+                    assert_eq!(&host, b"remote.invalid");
+                    assert_eq!(socket.read_u16().await.unwrap(), 443);
+                    socket
+                        .write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0])
+                        .await
+                        .unwrap();
+                    serve(socket, 7).await;
+                }
+            });
+            let route = Route::Socks5Auth {
+                proxy: proxy.into(),
+                target: "remote.invalid:443".parse().unwrap(),
+                dns: Socks5Dns::Proxy,
+                credentials: Socks5Credentials::new("user", "secret").unwrap(),
+            };
+            assert!(!format!("{route:?}").contains("secret"));
+            let pool = Pool::builder(route).build().unwrap();
+            if success {
+                let mut connection = pool.acquire().await.unwrap();
+                assert_eq!(exchange(&mut connection).await, 7);
+            } else {
+                assert!(matches!(
+                    pool.acquire().await,
+                    Err(AcquireError::Connect(ConnectError::Socks5(_)))
+                ));
+            }
+            server.await.unwrap();
+        }
+    })
+    .await;
+}
+
+#[cfg(feature = "socks5")]
+#[tokio::test]
+async fn socks_authenticated_route_rejects_anonymous_method() {
+    use tokio_tcp_pool::{Socks5Credentials, Socks5Dns};
+    bounded(async {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut greeting = [0; 3];
+            socket.read_exact(&mut greeting).await.unwrap();
+            assert_eq!(greeting, [5, 1, 2]);
+            socket.write_all(&[5, 0]).await.unwrap();
+        });
+        let pool = Pool::builder(Route::Socks5Auth {
+            proxy: proxy.into(),
+            target: "remote.invalid:443".parse().unwrap(),
+            dns: Socks5Dns::Proxy,
+            credentials: Socks5Credentials::new("user", "secret").unwrap(),
+        })
+        .build()
+        .unwrap();
+        assert!(matches!(
+            pool.acquire().await,
+            Err(AcquireError::Connect(ConnectError::Socks5(_)))
+        ));
+        server.await.unwrap();
+    })
+    .await;
+}
+
+#[cfg(feature = "http-connect")]
+#[test]
+fn proxy_authorization_rejects_header_injection_and_hides_secrets() {
+    use tokio_tcp_pool::ProxyAuthorization;
+    assert!(ProxyAuthorization::new("").is_err());
+    assert!(ProxyAuthorization::new("Basic token\r\nX-Evil: yes").is_err());
+    assert!(ProxyAuthorization::new("Basic café").is_err());
+    assert!(ProxyAuthorization::basic("user:name", "password").is_err());
+    assert!(ProxyAuthorization::basic("user", "pass\nword").is_err());
+    let authorization = ProxyAuthorization::basic("user", "secret").unwrap();
+    assert!(!format!("{authorization:?}").contains("secret"));
+}
+
+#[cfg(feature = "http-connect")]
+#[tokio::test]
+async fn http_connect_sends_proxy_authorization() {
+    use tokio_tcp_pool::ProxyAuthorization;
+    bounded(async {
+        for (authorization, expected) in [
+            (ProxyAuthorization::basic("user", "secret").unwrap(), "Basic dXNlcjpzZWNyZXQ="),
+            (ProxyAuthorization::new("Bearer token").unwrap(), "Bearer token"),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let proxy = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                assert_eq!(
+                    http_request(&mut socket).await,
+                    format!("CONNECT remote.invalid:443 HTTP/1.1\r\nHost: remote.invalid:443\r\nProxy-Authorization: {expected}\r\n\r\n")
+                );
+                socket.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await.unwrap();
+                serve(socket, 9).await;
+            });
+            let pool = Pool::builder(Route::HttpConnectAuth {
+                proxy: proxy.into(),
+                target: "remote.invalid:443".parse().unwrap(),
+                authorization,
+            })
+            .build()
+            .unwrap();
+            let mut connection = pool.acquire().await.unwrap();
+            assert_eq!(exchange(&mut connection).await, 9);
+            drop(connection);
+            server.await.unwrap();
+        }
+    })
+    .await;
+}
+
+#[cfg(feature = "socks5")]
 #[tokio::test]
 async fn socks_local_proxy_dns_ipv4_and_ipv6() {
     use tokio_tcp_pool::Socks5Dns;

@@ -16,12 +16,31 @@ impl ConnectionFactory {
             Route::Direct { target } => connect_tcp(target).await?,
             #[cfg(feature = "socks5")]
             Route::Socks5 { proxy, target, dns } => {
-                crate::socks5::connect(proxy, target, *dns).await?
+                crate::socks5::connect(proxy, target, *dns, None).await?
             }
+            #[cfg(feature = "socks5")]
+            Route::Socks5Auth {
+                proxy,
+                target,
+                dns,
+                credentials,
+            } => crate::socks5::connect(proxy, target, *dns, Some(credentials)).await?,
             #[cfg(feature = "http-connect")]
             Route::HttpConnect { proxy, target } => {
                 let mut socket = connect_tcp(proxy).await?;
-                crate::http_connect::handshake(&mut socket, target)
+                crate::http_connect::handshake(&mut socket, target, None)
+                    .await
+                    .map_err(ConnectError::HttpConnect)?;
+                socket
+            }
+            #[cfg(feature = "http-connect")]
+            Route::HttpConnectAuth {
+                proxy,
+                target,
+                authorization,
+            } => {
+                let mut socket = connect_tcp(proxy).await?;
+                crate::http_connect::handshake(&mut socket, target, Some(authorization))
                     .await
                     .map_err(ConnectError::HttpConnect)?;
                 socket

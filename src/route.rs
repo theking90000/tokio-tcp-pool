@@ -1,4 +1,8 @@
 use crate::Endpoint;
+#[cfg(feature = "http-connect")]
+use crate::ProxyAuthorization;
+#[cfg(feature = "socks5")]
+use crate::Socks5Credentials;
 
 /// Where a SOCKS5 target hostname is resolved.
 #[cfg(feature = "socks5")]
@@ -28,6 +32,18 @@ pub enum Route {
         /// Explicit DNS policy for the target.
         dns: Socks5Dns,
     },
+    /// Use a SOCKS5 proxy with username/password authentication.
+    #[cfg(feature = "socks5")]
+    Socks5Auth {
+        /// TCP proxy endpoint.
+        proxy: Endpoint,
+        /// Logical destination.
+        target: Endpoint,
+        /// Explicit DNS policy for the target.
+        dns: Socks5Dns,
+        /// Credentials required by the proxy.
+        credentials: Socks5Credentials,
+    },
     /// Use an unauthenticated HTTP CONNECT proxy over plain TCP.
     #[cfg(feature = "http-connect")]
     HttpConnect {
@@ -35,6 +51,16 @@ pub enum Route {
         proxy: Endpoint,
         /// Logical destination.
         target: Endpoint,
+    },
+    /// Use an HTTP CONNECT proxy with a `Proxy-Authorization` header.
+    #[cfg(feature = "http-connect")]
+    HttpConnectAuth {
+        /// TCP proxy endpoint.
+        proxy: Endpoint,
+        /// Logical destination.
+        target: Endpoint,
+        /// Authorization sent on every new CONNECT request.
+        authorization: ProxyAuthorization,
     },
 }
 impl Route {
@@ -44,8 +70,12 @@ impl Route {
             Self::Direct { target } => target,
             #[cfg(feature = "socks5")]
             Self::Socks5 { target, .. } => target,
+            #[cfg(feature = "socks5")]
+            Self::Socks5Auth { target, .. } => target,
             #[cfg(feature = "http-connect")]
             Self::HttpConnect { target, .. } => target,
+            #[cfg(feature = "http-connect")]
+            Self::HttpConnectAuth { target, .. } => target,
         }
     }
 }

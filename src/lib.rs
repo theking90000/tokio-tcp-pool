@@ -7,6 +7,8 @@ mod factory;
 #[cfg(feature = "http-connect")]
 mod http_connect;
 mod pool;
+#[cfg(any(feature = "socks5", feature = "http-connect"))]
+mod proxy_auth;
 mod route;
 #[cfg(feature = "socks5")]
 mod socks5;
@@ -20,6 +22,12 @@ pub use endpoint::{Endpoint, EndpointError, Host};
 pub use error::HttpConnectStatusError;
 pub use error::{AcquireError, ConfigError, ConnectError};
 pub use pool::{Pool, PoolBuilder, PoolConfig};
+#[cfg(any(feature = "socks5", feature = "http-connect"))]
+pub use proxy_auth::ProxyAuthError;
+#[cfg(feature = "http-connect")]
+pub use proxy_auth::ProxyAuthorization;
+#[cfg(feature = "socks5")]
+pub use proxy_auth::Socks5Credentials;
 pub use route::Route;
 #[cfg(feature = "tls")]
 pub use tls::TlsConfig;

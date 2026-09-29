@@ -1,4 +1,4 @@
-use crate::{Endpoint, HttpConnectStatusError};
+use crate::{Endpoint, HttpConnectStatusError, ProxyAuthorization};
 use std::io;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -8,10 +8,19 @@ use tokio::{
 // One byte at a time deliberately avoids consuming bytes belonging to the tunnel.
 // A CONNECT response is small and occurs only during connection establishment.
 const MAX_HEADERS: usize = 16 * 1024;
-pub(crate) async fn handshake(socket: &mut TcpStream, target: &Endpoint) -> io::Result<()> {
-    socket
-        .write_all(format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n\r\n").as_bytes())
-        .await?;
+pub(crate) async fn handshake(
+    socket: &mut TcpStream,
+    target: &Endpoint,
+    authorization: Option<&ProxyAuthorization>,
+) -> io::Result<()> {
+    let mut request = format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n");
+    if let Some(authorization) = authorization {
+        request.push_str("Proxy-Authorization: ");
+        request.push_str(authorization.value());
+        request.push_str("\r\n");
+    }
+    request.push_str("\r\n");
+    socket.write_all(request.as_bytes()).await?;
     let mut bytes = Vec::with_capacity(256);
     loop {
         if bytes.len() == MAX_HEADERS {
