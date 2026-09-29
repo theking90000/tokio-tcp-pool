@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Added `futures_io::AsyncWrite` support for `Connection`.
+
 ## 0.1.1
 
 - Added SOCKS5 username/password and HTTP CONNECT `Proxy-Authorization` support.

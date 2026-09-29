@@ -2,7 +2,8 @@
 
 Reuse TCP/TLS connections to one destination over a direct connection, SOCKS5,
 or HTTP CONNECT. Each acquired connection implements Tokio's `AsyncRead` and
-`AsyncWrite`, so ordinary Tokio I/O works without a protocol adapter.
+`AsyncWrite`, so ordinary Tokio I/O works without a protocol adapter. It also
+implements `futures_io::AsyncWrite` for callers using futures I/O writing.
 
 A connection returns to the pool only through `release()`. Dropping it discards
 it. This lets a protocol implementation reuse a fully consumed response stream
@@ -13,11 +14,10 @@ The pool creates connections on demand and starts no background tasks.
 ## Installation
 
 Requires Rust 1.85 or newer and a Tokio runtime with I/O and time enabled.
-Until a crates.io release, use the Git repository with access to the private repo:
 
 ```toml
 [dependencies]
-tokio-tcp-pool = "0.1.1"
+tokio-tcp-pool = "0.1.2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 ```
 
