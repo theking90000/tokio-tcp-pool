@@ -17,7 +17,7 @@ Until a crates.io release, use the Git repository with access to the private rep
 
 ```toml
 [dependencies]
-tokio-tcp-pool = { git = "https://github.com/theking90000/tokio-tcp-pool" }
+tokio-tcp-pool = "0.1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 ```
 
