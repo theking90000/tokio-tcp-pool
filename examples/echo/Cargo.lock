@@ -3,22 +3,6 @@
 version = 4
 
 [[package]]
-name = "tokio-tcp-pool"
-version = "0.1.0"
-dependencies = [
- "socket2",
- "tokio",
-]
-
-[[package]]
-name = "tokio-tcp-pool-echo-example"
-version = "0.1.0"
-dependencies = [
- "tokio-tcp-pool",
- "tokio",
-]
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -110,6 +94,22 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tokio-tcp-pool"
+version = "0.1.1"
+dependencies = [
+ "socket2",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-tcp-pool-echo-example"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "tokio-tcp-pool",
 ]
 
 [[package]]
