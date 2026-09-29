@@ -91,11 +91,37 @@ tunnel over plain TCP. TLS always validates the destination identity, never the
 proxy identity. `TlsConfig::server_name` provides an explicit override when
 connecting to an IP address that serves a DNS certificate.
 
+Use `Route::Socks5Auth` for a proxy that requires a username and password. Use
+`Route::HttpConnectAuth` to send `Proxy-Authorization` on each CONNECT request.
+`ProxyAuthorization::basic` encodes Basic credentials; `new` accepts a complete
+header value for another scheme.
+
+```rust,no_run
+# #[cfg(all(feature = "socks5", feature = "http-connect"))]
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
+use tokio_tcp_pool::{ProxyAuthorization, Route, Socks5Credentials, Socks5Dns};
+
+let socks = Route::Socks5Auth {
+    proxy: "127.0.0.1:1080".parse()?,
+    target: "storage.example.com:443".parse()?,
+    dns: Socks5Dns::Proxy,
+    credentials: Socks5Credentials::new("user", "password")?,
+};
+let http = Route::HttpConnectAuth {
+    proxy: "127.0.0.1:3128".parse()?,
+    target: "storage.example.com:443".parse()?,
+    authorization: ProxyAuthorization::basic("user", "password")?,
+};
+# let _ = (socks, http);
+# Ok(())
+# }
+```
+
 | Feature | Effect |
 | --- | --- |
 | `tls` | rustls through tokio-rustls, with the ring provider and TLS 1.2/1.3 |
-| `socks5` | SOCKS5 without proxy authentication |
-| `http-connect` | HTTP CONNECT, with httparse for response validation |
+| `socks5` | SOCKS5 with optional username/password authentication |
+| `http-connect` | HTTP CONNECT with optional `Proxy-Authorization`, and httparse for response validation |
 
 For only TCP and pooling, set `default-features = false`. This removes TLS and
 HTTP parser dependencies.

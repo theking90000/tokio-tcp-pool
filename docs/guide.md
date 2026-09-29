@@ -46,7 +46,13 @@ A literal IP is validated as an IP identity and sends no DNS-name SNI. An explic
 network addressing from TLS identity.
 
 TLS is established after TCP or proxy negotiation. TLS to the proxy itself is not
-supported. Proxy authentication is also outside version 0.1.
+supported. `Route::Socks5Auth` requires SOCKS5 username/password authentication
+and does not offer anonymous access as a fallback. Credentials must contain 1 to
+255 bytes each. `Route::HttpConnectAuth` sends the supplied
+`Proxy-Authorization` value on each new connection. Use
+`ProxyAuthorization::basic` for Basic credentials or `new` for another scheme.
+Proxy credentials are sent over plain TCP, so use authentication only with a
+trusted proxy connection.
 
 ## Recycling and shutdown
 
@@ -106,4 +112,4 @@ of this version. A borrowed pool stays alive for the duration of acquisition.
 CONNECT responses allow 2xx status codes, up to 16 KiB and 128 header fields.
 Malformed, truncated, oversized and non-success responses fail establishment.
 Headers are read exactly through their terminating CRLF pair, preserving any
-following tunnel bytes. Proxy credentials and HTTPS proxies are unsupported.
+following tunnel bytes. HTTPS proxies are unsupported.

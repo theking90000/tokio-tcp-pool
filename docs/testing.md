@@ -17,8 +17,8 @@ verify that proxy DNS does not trigger local destination resolution.
 | Non-destructive health check | Pending application bytes survive reuse; private test waits until FIN is observable |
 | Broken connections | TCP reset produces a read error and sets the private broken flag; EOF and write shutdown also prevent reuse |
 | Tokio I/O | Read/write, flush, shutdown and `tokio::io::copy` |
-| SOCKS5 | Local/proxy DNS, IPv4/IPv6/domain addresses, reply failures and malformed/truncated replies |
-| CONNECT | 2xx, IPv6 authority, coalesced tunnel bytes, 403/407/500, malformed/oversized/truncated headers |
+| SOCKS5 | Local/proxy DNS, IPv4/IPv6/domain addresses, username/password authentication, reply failures and malformed/truncated replies |
+| CONNECT | 2xx, IPv6 authority, Basic and custom `Proxy-Authorization`, coalesced tunnel bytes, 403/407/500, malformed/oversized/truncated headers |
 | TLS | Direct, SOCKS5 and CONNECT, incorrect trust or hostname, explicit identity override, interrupted handshake |
 | Graceful TLS close | Peer reads clean EOF after close_notify; cancelling an unpolled close yields unclean EOF |
 | No implicit read timeout | A TLS read remains pending beyond the establishment timeout |
