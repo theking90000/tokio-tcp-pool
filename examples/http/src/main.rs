@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpListener,
     task::JoinSet,
 };
 use tokio_tcp_pool::{
@@ -25,33 +24,75 @@ async fn get(pool: Pool, path: String) -> Result<(), Box<dyn std::error::Error>>
         .write_all(b"Connection: keep-alive\r\n\r\n")
         .await?;
 
-    let mut response = vec![0; 1024];
+    let mut buf = vec![0; 4096];
+    let mut read = 0;
+    let mut body;
+    let mut content_length: usize = 0;
+    let mut remaining = 0;
 
     loop {
-        let n = connection.read(&mut response).await?;
+        match connection.read(&mut buf[read..(read + 32)]).await {
+            Ok(n) => {
+                read += n;
+                println!("Connexion :: {:p}, Read read={}", &connection, read);
+                let mut headers = [httparse::EMPTY_HEADER; 100];
+                let mut resp = httparse::Response::new(&mut headers);
+                // println!("Connexion :: {:p}, data data={:?}",&connection, str::from_utf8(&buf[..read]));
+                match resp.parse(&buf[..read]) {
+                    Ok(httparse::Status::Partial) => {}
+                    Ok(httparse::Status::Complete(n)) => {
+                        //println!("Connexion :: {:p}, Headers={:?}", &connection, headers.len());
+                        for h in headers {
+                            if h.name.to_lowercase() == "content-length" {
+                                content_length =
+                                    str::from_utf8(h.value).unwrap().parse::<usize>().unwrap();
+                                remaining = content_length - (read - n);
+                                println!(
+                                    "Connexion :: {:p}, content_length={:?}, remaining_read={}",
+                                    &connection, &content_length, remaining
+                                );
+                            }
+                        }
 
-        println!(
-            "Received {} bytes {:?}",
-            n,
-            str::from_utf8(&response[..n]).unwrap_or("Invalid UTF-8")
-        );
-        // Check if HTTP/1.1 200 OK is present in the response
-        if response
-            .windows(15)
-            .any(|window| window == b"HTTP/1.1 200 OK\r\n")
-        {
-            println!("Received HTTP/1.1 200 OK");
-        }
-        if response
-            .windows(24)
-            .any(|window| window == b"HTTP/1.1 404 Not Found\r\n")
-        {
-            println!("Received HTTP/1.1 404 Not Found");
-        }
+                        body = n;
+                        break;
+                    }
+                    Err(e) => {
+                        println!("Connexion :: {:p}, Error! {:?}", &connection, e);
+                        connection.discard();
+                        return Ok(());
+                    }
+                }
+            }
+            Err(e) => {
+                println!("Connexion :: {:p}, Error! {:?}", &connection, e);
+                connection.discard();
+                return Ok(());
+            }
+        };
+    }
 
-        // normally : should do parsing of content length header.
-        if n < 1024 {
-            break;
+    // data remaining "body..read"
+    println!(
+        "Connexion :: {:p}, Read~> {:?}",
+        &connection,
+        str::from_utf8(&buf[body..read])
+    );
+    while remaining != 0 {
+        match connection.read(&mut buf[..40.min(remaining)]).await {
+            Ok(n) => {
+                println!(
+                    "Connexion :: {:p}, Read~> {:?}",
+                    &connection,
+                    str::from_utf8(&buf[..n])
+                );
+                remaining -= n;
+            }
+            Err(e) => {
+                println!("Connexion :: {:p}, Error! {:?}", &connection, e);
+                connection.discard();
+                return Ok(());
+            }
         }
     }
 
@@ -101,7 +142,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     j.spawn(get_panic(pool.clone(), "/404-2".to_string()));
     j.spawn(get_panic(pool.clone(), "/404-3".to_string()));
 
-    while let Some(res) = j.join_next().await {}
+    while let Some(_) = j.join_next().await {}
+
+    get_panic(pool.clone(), "/".to_string()).await;
 
     drop(pool);
     Ok(())

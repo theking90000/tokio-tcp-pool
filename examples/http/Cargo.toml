@@ -9,5 +9,6 @@ publish = false
 tokio-tcp-pool = { path = "../..", default-features = false, features = ["tls"] }
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "net", "io-util"] }
 rustls-native-certs = "0.8.4"
+httparse = "1.10.1"
 
 [workspace]
