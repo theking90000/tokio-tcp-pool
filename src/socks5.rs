@@ -137,7 +137,10 @@ async fn handshake(
     socket.read_exact(&mut bound[..length + 2]).await?;
     Ok(())
 }
-async fn write_all_vectored(socket: &mut TcpStream, mut bufs: &mut [IoSlice<'_>]) -> io::Result<()> {
+async fn write_all_vectored(
+    socket: &mut TcpStream,
+    mut bufs: &mut [IoSlice<'_>],
+) -> io::Result<()> {
     while !bufs.is_empty() {
         let written = socket.write_vectored(bufs).await?;
         if written == 0 {
